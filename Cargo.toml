@@ -1,0 +1,13 @@
+[package]
+name = "pbt-cli"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+uuid = { version = "1.6.1", features = ["v4"] }
+colored = "2"
+chrono = "0.4.31"
+diesel = { version = "2.1.4", features = ["mysql", "chrono"] }
+dotenvy = "0.15"
