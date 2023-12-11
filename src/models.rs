@@ -75,3 +75,11 @@ pub struct NewUser {
     pub wins: i32,
     pub ranking: i32,
 }
+
+#[allow(non_snake_case)]
+#[derive(Insertable, Debug)]
+#[diesel(table_name = crate::schema::)]
+pub struct NewTournamentUserLink {
+    pub A: i32,    // tournamentId
+    pub B: String, // userId
+}

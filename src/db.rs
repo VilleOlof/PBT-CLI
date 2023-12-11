@@ -8,7 +8,7 @@ use crate::models::{
     self, Match, NewMatch, NewMatchUser, NewTournament, NewUser, Tournament, User,
 };
 use crate::schema::match_::{matchIndex, tournamentId};
-use crate::tournament_parser::{MatchUser, ParsedTournament};
+use crate::tournament_parser::{self, MatchUser, ParsedTournament};
 
 pub fn establish_connection() -> MysqlConnection {
     dotenv().ok();
@@ -80,9 +80,10 @@ pub fn insert_parsed_tournament(conn: &mut MysqlConnection, parsed_tournament: P
     create_matches(conn, matches);
     create_users(conn, users);
 
+    let overall = tournament_parser::get_overall_player_list(parsed_tournament.matches.clone());
+    update_user_ranks(conn, overall);
+
     // TODO
-    // Implement GetOverallPlayerList (Reference: Tournament.ts)
-    // Then Implement The User Ranking Update Query With `Overall.len() - i`;
     // And then do queries for the ` _tournamenttouser` table, which is just tournament_id & userIds
 }
 
@@ -99,7 +100,7 @@ fn create_tournament(conn: &mut MysqlConnection, new: NewTournament) -> Tourname
             .select(Tournament::as_select())
             .first(conn)
     })
-    .expect("Error while saving post")
+    .expect("Failed to create new tournament")
 }
 
 fn create_matches(conn: &mut MysqlConnection, matches: Vec<(NewMatch, Vec<NewMatchUser>)>) {
@@ -134,11 +135,23 @@ fn create_users(conn: &mut MysqlConnection, users: Vec<NewUser>) {
             .set(user::username.eq(new_user.username))
             .execute(conn)
             .expect("Failed to update user: username");
-
-        // diesel::update(user::table)
-        //     .filter(user::userId.eq(&new_user.userId))
-        //     .set(user::ranking.eq(user::ranking + ))
-        //     .execute(conn)
-        //     .expect("Failed to update user: username");
     }
 }
+
+fn update_user_ranks(conn: &mut MysqlConnection, users: Vec<MatchUser>) {
+    use crate::schema::user;
+
+    for i in 0..users.len() {
+        let user = &users[i];
+        diesel::update(user::table)
+            .filter(user::userId.eq(&user.user_id))
+            .set(user::ranking.eq(user::ranking + (users.len() - i) as i32))
+            .execute(conn)
+            .expect(&format!(
+                "Failed to update user ranking: ({})",
+                user.username
+            ));
+    }
+}
+
+fn create_tournament_user_link(conn: &mut MysqlConnection, linked: Vec<(i32, String)>) {}

@@ -33,7 +33,7 @@ pub struct MatchUser {
     pub immune_status: ImmuneStatus,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MatchType {
     Final,
     SemiFinal,
@@ -44,7 +44,7 @@ pub enum MatchType {
     Game2,
     Game1,
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LifeStatus {
     Alive,
     Eliminated,
@@ -189,6 +189,21 @@ pub fn parse(file_path: &String, user_input: &UserInput) -> ParsedTournament {
     }
 
     tournament
+}
+
+pub fn get_overall_player_list(matches: Vec<Match>) -> Vec<MatchUser> {
+    let mut players: Vec<MatchUser> = vec![];
+    for m in matches {
+        let mut new_players: Vec<MatchUser> = m
+            .players
+            .into_iter()
+            .filter(|p| p.life_status != LifeStatus::Alive || m.match_type == MatchType::Final)
+            .collect();
+
+        players.append(&mut new_players);
+    }
+
+    players
 }
 
 fn get_lines(filename: &str) -> io::Result<Vec<String>> {
