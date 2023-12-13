@@ -2,7 +2,7 @@ use chrono::NaiveDateTime;
 use diesel::prelude::*;
 
 #[derive(Queryable, Selectable, Debug)]
-#[diesel(table_name = crate::schema::tournament)]
+#[diesel(table_name = crate::schema::Tournament)]
 #[diesel(check_for_backend(diesel::mysql::Mysql))]
 pub struct Tournament {
     pub id: i32,
@@ -13,7 +13,7 @@ pub struct Tournament {
 }
 
 #[derive(Insertable, Debug)]
-#[diesel(table_name = crate::schema::tournament)]
+#[diesel(table_name = crate::schema::Tournament)]
 pub struct NewTournament {
     pub version: i32,
     pub date: NaiveDateTime,
@@ -23,7 +23,7 @@ pub struct NewTournament {
 
 #[allow(non_snake_case)]
 #[derive(Queryable, Selectable, Debug)]
-#[diesel(table_name = crate::schema::match_)]
+#[diesel(table_name = crate::schema::Match_)]
 #[diesel(check_for_backend(diesel::mysql::Mysql))]
 pub struct Match {
     pub id: String,
@@ -34,7 +34,7 @@ pub struct Match {
 
 #[allow(non_snake_case)]
 #[derive(Insertable, Debug)]
-#[diesel(table_name = crate::schema::match_)]
+#[diesel(table_name = crate::schema::Match_)]
 pub struct NewMatch {
     pub id: String,
     pub matchType: String,
@@ -44,7 +44,7 @@ pub struct NewMatch {
 
 #[allow(non_snake_case)]
 #[derive(Insertable, Debug)]
-#[diesel(table_name = crate::schema::matchuser)]
+#[diesel(table_name = crate::schema::MatchUser)]
 pub struct NewMatchUser {
     pub id: String,
     pub username: String,
@@ -57,7 +57,7 @@ pub struct NewMatchUser {
 
 #[allow(non_snake_case)]
 #[derive(Queryable, Selectable, Debug)]
-#[diesel(table_name = crate::schema::user)]
+#[diesel(table_name = crate::schema::User)]
 #[diesel(check_for_backend(diesel::mysql::Mysql))]
 pub struct User {
     pub userId: String,
@@ -68,18 +68,10 @@ pub struct User {
 
 #[allow(non_snake_case)]
 #[derive(Insertable, Debug)]
-#[diesel(table_name = crate::schema::user)]
+#[diesel(table_name = crate::schema::User)]
 pub struct NewUser {
     pub userId: String,
     pub username: String,
     pub wins: i32,
     pub ranking: i32,
-}
-
-#[allow(non_snake_case)]
-#[derive(Insertable, Debug)]
-#[diesel(table_name = crate::schema::)]
-pub struct NewTournamentUserLink {
-    pub A: i32,    // tournamentId
-    pub B: String, // userId
 }

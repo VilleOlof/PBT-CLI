@@ -241,6 +241,7 @@ dependencies = [
  "colored",
  "diesel",
  "dotenvy",
+ "url",
  "uuid",
 ]
 

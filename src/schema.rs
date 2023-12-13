@@ -1,8 +1,9 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
-    #[sql_name = "match"]
-    match_ (id) {
+    #[allow(non_snake_case)]
+    #[sql_name = "Match"]
+    Match_ (id) {
         #[max_length = 191]
         id -> Varchar,
         #[max_length = 191]
@@ -13,7 +14,8 @@ diesel::table! {
 }
 
 diesel::table! {
-    matchuser (id) {
+    #[allow(non_snake_case)]
+    MatchUser (id) {
         #[max_length = 191]
         id -> Varchar,
         #[max_length = 191]
@@ -31,7 +33,8 @@ diesel::table! {
 }
 
 diesel::table! {
-    nexttournament (id) {
+    #[allow(non_snake_case)]
+    NextTournament (id) {
         id -> Integer,
         date -> Datetime,
         #[max_length = 191]
@@ -44,7 +47,8 @@ diesel::table! {
 }
 
 diesel::table! {
-    tournament (id) {
+    #[allow(non_snake_case)]
+    Tournament (id) {
         id -> Integer,
         version -> Integer,
         date -> Datetime,
@@ -56,7 +60,8 @@ diesel::table! {
 }
 
 diesel::table! {
-    user (userId) {
+    #[allow(non_snake_case)]
+    User (userId) {
         #[max_length = 191]
         userId -> Varchar,
         #[max_length = 191]
@@ -66,8 +71,8 @@ diesel::table! {
     }
 }
 
-diesel::joinable!(match_ -> tournament (tournamentId));
-diesel::joinable!(matchuser -> match_ (matchId));
-diesel::joinable!(matchuser -> user (userId));
+diesel::joinable!(Match_ -> Tournament (tournamentId));
+diesel::joinable!(MatchUser -> Match_ (matchId));
+diesel::joinable!(MatchUser -> User (userId));
 
-diesel::allow_tables_to_appear_in_same_query!(match_, matchuser, nexttournament, tournament, user,);
+diesel::allow_tables_to_appear_in_same_query!(Match_, MatchUser, NextTournament, Tournament, User,);

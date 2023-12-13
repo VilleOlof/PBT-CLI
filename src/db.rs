@@ -1,21 +1,36 @@
+use diesel::connection::SimpleConnection;
 use diesel::mysql::MysqlConnection;
 use diesel::prelude::*;
-use dotenvy::dotenv;
+
+use dotenvy::{dotenv, from_filename};
 use std::{env, vec};
+use url::Url;
 use uuid::Uuid;
 
-use crate::models::{
-    self, Match, NewMatch, NewMatchUser, NewTournament, NewUser, Tournament, User,
-};
-use crate::schema::match_::{matchIndex, tournamentId};
+use crate::models::{self, NewMatch, NewMatchUser, NewTournament, NewUser, Tournament};
 use crate::tournament_parser::{self, MatchUser, ParsedTournament};
 
-pub fn establish_connection() -> MysqlConnection {
-    dotenv().ok();
+pub fn establish_connection() -> (MysqlConnection, String) {
+    match cfg!(debug_assertions) {
+        true => dotenv().ok(),
+        false => from_filename(".release.env").ok(),
+    };
 
     let database_url = env::var("DATABASE_URL").expect("No DATABASE_URL In .env");
-    MysqlConnection::establish(&database_url)
-        .unwrap_or_else(|_| panic!("Error Connecting To {}", database_url))
+    let database_name = Url::parse(&database_url)
+        .expect("Failed to parse database url")
+        .path()
+        .to_owned();
+
+    let conn = MysqlConnection::establish(&database_url).unwrap_or_else(|error| {
+        panic!(
+            "Error Connecting To {}, {}",
+            database_url,
+            error.to_string()
+        )
+    });
+
+    return (conn, database_name);
 }
 
 pub fn insert_parsed_tournament(conn: &mut MysqlConnection, parsed_tournament: ParsedTournament) {
@@ -77,43 +92,47 @@ pub fn insert_parsed_tournament(conn: &mut MysqlConnection, parsed_tournament: P
         matches.push((new_m, match_users));
     }
 
-    create_matches(conn, matches);
     create_users(conn, users);
+    create_matches(conn, matches);
 
     let overall = tournament_parser::get_overall_player_list(parsed_tournament.matches.clone());
-    update_user_ranks(conn, overall);
+    update_user_ranks(conn, overall.clone());
 
-    // TODO
-    // And then do queries for the ` _tournamenttouser` table, which is just tournament_id & userIds
+    let mut linked_tournament_users: Vec<(i32, String)> = vec![];
+    // Might as well utilize the overall vec for this
+    for user in overall {
+        linked_tournament_users.push((db_tournament.id, user.user_id));
+    }
+    create_tournament_user_link(conn, linked_tournament_users);
 }
 
 fn create_tournament(conn: &mut MysqlConnection, new: NewTournament) -> Tournament {
-    use crate::schema::tournament;
+    use crate::schema::Tournament;
 
     conn.transaction(|conn| {
-        diesel::insert_into(tournament::table)
+        diesel::insert_into(Tournament::table)
             .values(&new)
             .execute(conn)?;
 
-        tournament::table
-            .order(tournament::id.desc())
-            .select(Tournament::as_select())
+        Tournament::table
+            .order(Tournament::id.desc())
+            .select(models::Tournament::as_select())
             .first(conn)
     })
     .expect("Failed to create new tournament")
 }
 
 fn create_matches(conn: &mut MysqlConnection, matches: Vec<(NewMatch, Vec<NewMatchUser>)>) {
-    use crate::schema::match_;
-    use crate::schema::matchuser;
+    use crate::schema::MatchUser;
+    use crate::schema::Match_;
 
     for (new_match, match_users) in matches {
-        diesel::insert_into(match_::table)
+        diesel::insert_into(Match_::table)
             .values(&new_match)
             .execute(conn)
             .expect("Failed to insert new match");
 
-        diesel::insert_into(matchuser::table)
+        diesel::insert_into(MatchUser::table)
             .values(&match_users)
             .execute(conn)
             .expect("Failed to insert new match users");
@@ -121,31 +140,31 @@ fn create_matches(conn: &mut MysqlConnection, matches: Vec<(NewMatch, Vec<NewMat
 }
 
 fn create_users(conn: &mut MysqlConnection, users: Vec<NewUser>) {
-    use crate::schema::user;
+    use crate::schema::User;
 
     for new_user in users {
-        diesel::insert_into(user::table)
+        diesel::insert_into(User::table)
             .values(&new_user)
             .on_conflict_do_nothing()
             .execute(conn)
             .expect("Failed to insert new user");
 
-        diesel::update(user::table)
-            .filter(user::userId.eq(&new_user.userId))
-            .set(user::username.eq(new_user.username))
+        diesel::update(User::table)
+            .filter(User::userId.eq(&new_user.userId))
+            .set(User::username.eq(new_user.username))
             .execute(conn)
             .expect("Failed to update user: username");
     }
 }
 
 fn update_user_ranks(conn: &mut MysqlConnection, users: Vec<MatchUser>) {
-    use crate::schema::user;
+    use crate::schema::User;
 
     for i in 0..users.len() {
         let user = &users[i];
-        diesel::update(user::table)
-            .filter(user::userId.eq(&user.user_id))
-            .set(user::ranking.eq(user::ranking + (users.len() - i) as i32))
+        diesel::update(User::table)
+            .filter(User::userId.eq(&user.user_id))
+            .set(User::ranking.eq(User::ranking + (users.len() - i) as i32))
             .execute(conn)
             .expect(&format!(
                 "Failed to update user ranking: ({})",
@@ -154,4 +173,19 @@ fn update_user_ranks(conn: &mut MysqlConnection, users: Vec<MatchUser>) {
     }
 }
 
-fn create_tournament_user_link(conn: &mut MysqlConnection, linked: Vec<(i32, String)>) {}
+fn create_tournament_user_link(conn: &mut MysqlConnection, linked: Vec<(i32, String)>) {
+    // have to do raw sql query since diesel dont work with non-primary key tables and this table is only for internal prisma
+
+    let mut batch_query: String = String::new();
+    for (a, b) in linked {
+        let query = format!(
+            "INSERT INTO _TournamentToUser (A, B) VALUES ({}, '{}');",
+            a, b
+        );
+
+        batch_query += &query;
+    }
+
+    conn.batch_execute(&batch_query)
+        .expect("Failed to batch insert tournament to user fields");
+}

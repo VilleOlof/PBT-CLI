@@ -11,3 +11,4 @@ colored = "2"
 chrono = "0.4.31"
 diesel = { version = "2.1.4", features = ["mysql", "chrono"] }
 dotenvy = "0.15"
+url = "2.5.0"
