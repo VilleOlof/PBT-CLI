@@ -96,6 +96,10 @@ pub fn insert_parsed_tournament(conn: &mut MysqlConnection, parsed_tournament: P
     create_matches(conn, matches);
 
     let overall = tournament_parser::get_overall_player_list(parsed_tournament.matches.clone());
+    update_user_win(
+        conn,
+        overall.first().expect("No first user in overall").clone(),
+    );
     update_user_ranks(conn, overall.clone());
 
     let mut linked_tournament_users: Vec<(i32, String)> = vec![];
@@ -171,6 +175,16 @@ fn update_user_ranks(conn: &mut MysqlConnection, users: Vec<MatchUser>) {
                 user.username
             ));
     }
+}
+
+fn update_user_win(conn: &mut MysqlConnection, user: MatchUser) {
+    use crate::schema::User;
+
+    diesel::update(User::table)
+        .filter(User::userId.eq(user.user_id))
+        .set(User::wins.eq(User::wins + 1))
+        .execute(conn)
+        .expect(&format!("Failed to update user wins: ({})", user.username));
 }
 
 fn create_tournament_user_link(conn: &mut MysqlConnection, linked: Vec<(i32, String)>) {
